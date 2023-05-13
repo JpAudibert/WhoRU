@@ -5,6 +5,7 @@ import { useEffect, useState } from 'react';
 import Animated, { useSharedValue, useAnimatedStyle, log } from 'react-native-reanimated'
 
 import { styles } from './styles';
+import api from '../../services/api';
 
 export function Home() {
   const [faceDetected, setFaceDetected] = useState(false);
@@ -31,8 +32,9 @@ export function Home() {
     borderWidth: 10,
   }));
 
-  function handleFacesDetected({ faces }: FaceDetectionResult) {
-    const face = faces[0] as any;
+  async function handleFacesDetected({ faces }: FaceDetectionResult) {
+    const face = faces[0] as FaceDetector.FaceFeature;
+    setCounter(0);
     setFaceDetected(false);
 
     if (face) {
@@ -46,7 +48,7 @@ export function Home() {
       }
 
       if (counter == 5) {
-        
+        await api.post("recognition", face);
       }
 
       setCounter(counter + 1);
@@ -76,7 +78,7 @@ export function Home() {
           detectLandmarks: FaceDetector.FaceDetectorLandmarks.all,
           runClassifications: FaceDetector.FaceDetectorClassifications.all,
           minDetectionInterval: 100,
-          tracking: true,
+          tracking: true
         }}
       />
     </View>
