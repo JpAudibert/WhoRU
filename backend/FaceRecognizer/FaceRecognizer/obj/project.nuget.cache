@@ -1,0 +1,15 @@
+{
+  "version": 2,
+  "dgSpecHash": "FZR799zIEJ34JW/v+S/MCTathcGawjkFgTzCwIvk1e5bWv4hpvl4jqfVO0uiOdm4S3pMVbUlFBUlEQW+2HT8tA==",
+  "success": true,
+  "projectFilePath": "C:\\Users\\FlxManEvolution\\www\\WhoRU\\backend\\FaceRecognizer\\FaceRecognizer\\FaceRecognizer.csproj",
+  "expectedPackageFiles": [
+    "C:\\Users\\FlxManEvolution\\.nuget\\packages\\microsoft.extensions.apidescription.server\\3.0.0\\microsoft.extensions.apidescription.server.3.0.0.nupkg.sha512",
+    "C:\\Users\\FlxManEvolution\\.nuget\\packages\\microsoft.openapi\\1.2.3\\microsoft.openapi.1.2.3.nupkg.sha512",
+    "C:\\Users\\FlxManEvolution\\.nuget\\packages\\swashbuckle.aspnetcore\\6.2.3\\swashbuckle.aspnetcore.6.2.3.nupkg.sha512",
+    "C:\\Users\\FlxManEvolution\\.nuget\\packages\\swashbuckle.aspnetcore.swagger\\6.2.3\\swashbuckle.aspnetcore.swagger.6.2.3.nupkg.sha512",
+    "C:\\Users\\FlxManEvolution\\.nuget\\packages\\swashbuckle.aspnetcore.swaggergen\\6.2.3\\swashbuckle.aspnetcore.swaggergen.6.2.3.nupkg.sha512",
+    "C:\\Users\\FlxManEvolution\\.nuget\\packages\\swashbuckle.aspnetcore.swaggerui\\6.2.3\\swashbuckle.aspnetcore.swaggerui.6.2.3.nupkg.sha512"
+  ],
+  "logs": []
+}
