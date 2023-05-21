@@ -5,7 +5,7 @@ using Microsoft.AspNetCore.Mvc;
 namespace FaceRecognizer.Controllers;
 
 [ApiController]
-[Route("[controller]")]
+[Route("api/v1")]
 public class RecognizeController : Controller
 {
     private IPersonRecognizer recognizer;
@@ -16,6 +16,7 @@ public class RecognizeController : Controller
     }
 
     [HttpPost]
+    [Route("recognize")]
     public async Task<IActionResult> RecognizePerson([FromForm] IFormFile image)
     {
         RecognizedPerson person = await recognizer.Recognize(image);
@@ -24,5 +25,13 @@ public class RecognizeController : Controller
             return BadRequest(person);
 
         return Ok(person);
+    }
+
+    [HttpPost]
+    [Route("train")]
+    public async Task<IActionResult> TrainEngine([FromForm] List<IFormFile> images, [FromForm] string name)
+    {
+        await recognizer.SaveImagesForTraining(images, name);
+        return Ok(new { message = "Everything OK" });
     }
 }

@@ -11,8 +11,8 @@ builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
-builder.Services.AddScoped<IPersonRecognizer, PersonRecognizer>();
-builder.Services.AddScoped<EigenFaceRecognizer>();
+builder.Services.AddSingleton<IPersonRecognizer, PersonRecognizer>();
+builder.Services.AddSingleton<EigenFaceRecognizer>();
 
 var app = builder.Build();
 
