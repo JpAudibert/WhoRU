@@ -2,10 +2,11 @@
 
 public class RecognizedPerson
 {
-    public string Name { get; set; }
+    public bool IsRecognized { get; set; }
+    public string? Name { get; set; } = string.Empty;
 
-    public RecognizedPerson(string name)
+    public RecognizedPerson(bool isRecognized)
     {
-        Name = name;
+        IsRecognized = isRecognized;
     }
 }
