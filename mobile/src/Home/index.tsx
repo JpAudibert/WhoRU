@@ -1,16 +1,23 @@
 import { View } from 'react-native';
-import { Camera, CameraType, FaceDetectionResult } from 'expo-camera';
+import { Camera, CameraCapturedPicture, CameraPictureOptions, CameraType, FaceDetectionResult, ImageType } from 'expo-camera';
 import * as FaceDetector from 'expo-face-detector';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef, useCallback } from 'react';
 import Animated, { useSharedValue, useAnimatedStyle, log } from 'react-native-reanimated'
 
 import { styles } from './styles';
 import api from '../../services/api';
+import mime from 'mime'
+
+interface IIdentifiedPerson {
+  name: string;
+}
 
 export function Home() {
+  const cameraRef = useRef<Camera>();
   const [faceDetected, setFaceDetected] = useState(false);
   const [permission, requestPermission] = Camera.useCameraPermissions();
   const [counter, setCounter] = useState(0);
+  const [image, setImage] = useState<CameraCapturedPicture>({} as CameraCapturedPicture);
 
   const faceValues = useSharedValue({
     width: 0,
@@ -32,12 +39,24 @@ export function Home() {
     borderWidth: 10,
   }));
 
-  async function handleFacesDetected({ faces }: FaceDetectionResult) {
+  const takePicture = async () => {
+    let options: CameraPictureOptions = {
+      quality: 1,
+      base64: true,
+      exif: false,
+      imageType: ImageType.jpg,
+    };
+
+    let newPhoto = await cameraRef.current.takePictureAsync(options);
+    setImage(newPhoto);
+  }
+
+  async function handleFacesDetected({ faces }: FaceDetector.DetectionResult) {
     const face = faces[0] as FaceDetector.FaceFeature;
     setCounter(0);
-    setFaceDetected(false);
 
     if (face) {
+      console.log("vou processar")
       const { size, origin } = face.bounds;
 
       faceValues.value = {
@@ -47,12 +66,35 @@ export function Home() {
         y: origin.y,
       }
 
-      if (counter == 5) {
-        await api.post("recognition", face);
-      }
-
-      setCounter(counter + 1);
       setFaceDetected(true);
+
+      // if (counter == 5) {
+      await takePicture();
+
+      const result = await fetch(image.uri);
+      const blob = await result.blob();
+      let file = new File([blob], "detectedFace.jpg")
+
+      const formData = new FormData();
+      formData.append('file', file);
+
+      try {
+        const response = await api.post("identify", formData, {
+          headers: {
+            "Content-Type": "multipart/form-data",
+          }
+        });
+        console.log("response:::", response)
+        console.log(response.data);
+      } catch (error) {
+        console.error(error.toJSON())
+        // console.error(error.config)
+
+      }
+      // }
+
+      setFaceDetected(false);
+      setCounter(counter + 1);
     }
   }
 
@@ -70,6 +112,7 @@ export function Home() {
         faceDetected && <Animated.View style={animatedStyle} />
       }
       <Camera
+        ref={cameraRef}
         style={styles.camera}
         type={CameraType.front}
         onFacesDetected={handleFacesDetected}
@@ -77,7 +120,7 @@ export function Home() {
           mode: FaceDetector.FaceDetectorMode.accurate,
           detectLandmarks: FaceDetector.FaceDetectorLandmarks.all,
           runClassifications: FaceDetector.FaceDetectorClassifications.all,
-          minDetectionInterval: 100,
+          minDetectionInterval: 3000,
           tracking: true
         }}
       />
