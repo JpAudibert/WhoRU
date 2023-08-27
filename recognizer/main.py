@@ -1,7 +1,6 @@
 import os
 import string
 from typing import Annotated
-import urllib
 import uuid
 import pickle
 import datetime
@@ -9,11 +8,13 @@ import time
 import shutil
 
 import cv2
-from fastapi import FastAPI, File, UploadFile, Form, UploadFile, Response
+from fastapi import FastAPI, File, Request, UploadFile, Form, UploadFile, Response
 from fastapi.responses import FileResponse
 from fastapi.middleware.cors import CORSMiddleware
 import face_recognition
+from pydantic import BaseModel
 import starlette
+import uvicorn
 
 
 ATTENDANCE_LOG_DIR = "./logs"
@@ -35,30 +36,33 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# @app.post(PREFIX + "/identify")
+# async def indentify(file: UploadFile = File(...)):
+#     file.filename = f"{uuid.uuid4()}.png"
+#     contents = await file.read()
+
+#     # example of how you can save the file
+#     with open(file.filename, "wb") as f:
+#         f.write(contents)
+
+#     user_name, match_status = recognize(cv2.imread(file.filename))
+
+#     if match_status:
+#         epoch_time = time.time()
+#         date = time.strftime("%Y%m%d", time.localtime(epoch_time))
+#         with open(os.path.join(ATTENDANCE_LOG_DIR, "{}.csv".format(date)), "a") as f:
+#             f.write("{},{},{}\n".format(user_name, datetime.datetime.now(), "IN"))
+#             f.close()
+
+#     return {"user": user_name, "match_status": match_status}
 
 @app.post(PREFIX + "/identify")
-async def indentify(file: UploadFile = File(...)):
-    file.filename = f"{uuid.uuid4()}.png"
-    contents = await file.read()
-
-    # example of how you can save the file
-    with open(file.filename, "wb") as f:
-        f.write(contents)
-
-    user_name, match_status = recognize(cv2.imread(file.filename))
-
-    if match_status:
-        epoch_time = time.time()
-        date = time.strftime("%Y%m%d", time.localtime(epoch_time))
-        with open(os.path.join(ATTENDANCE_LOG_DIR, "{}.csv".format(date)), "a") as f:
-            f.write("{},{},{}\n".format(user_name, datetime.datetime.now(), "IN"))
-            f.close()
-
-    return {"user": user_name, "match_status": match_status}
-
+async def indentify(request: Request):
+    body = request.body()
+    print(body)
 
 @app.post(PREFIX + "/register")
-async def register(file: UploadFile = File(...), name: Annotated[str, Form()] = None):
+async def register(file: UploadFile = File(...), name: str = Form(...)):
     file.filename = f"{uuid.uuid4()}.png"
     contents = await file.read()
 
@@ -90,12 +94,6 @@ async def get_attendance_logs():
         filename, media_type="application/zip", filename=filename
     )
 
-
-@app.get(PREFIX + "/test")
-async def test():
-    return "out of gas"
-
-
 def recognize(img):
     # it is assumed there will be at most 1 match in the db
 
@@ -125,3 +123,6 @@ def recognize(img):
         return db_dir[j - 1][:-7], True
     else:
         return "unknown_person", False
+
+if __name__ == "__main__":
+    uvicorn.run("main:app", host="0.0.0.0", port=5001, reload=True)
