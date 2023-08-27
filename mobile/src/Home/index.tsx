@@ -1,16 +1,19 @@
 import { View } from 'react-native';
-import { Camera, CameraType, FaceDetectionResult } from 'expo-camera';
+import { Camera, CameraCapturedPicture, CameraType, FaceDetectionResult } from 'expo-camera';
 import * as FaceDetector from 'expo-face-detector';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import Animated, { useSharedValue, useAnimatedStyle, log } from 'react-native-reanimated'
 
 import { styles } from './styles';
 import api from '../../services/api';
+import React from 'react';
 
 export function Home() {
+  let cameraRef = useRef<Camera>();
   const [faceDetected, setFaceDetected] = useState(false);
   const [permission, requestPermission] = Camera.useCameraPermissions();
   const [counter, setCounter] = useState(0);
+  const [image, setImage] = useState<CameraCapturedPicture>({} as CameraCapturedPicture);
 
   const faceValues = useSharedValue({
     width: 0,
@@ -32,9 +35,15 @@ export function Home() {
     borderWidth: 10,
   }));
 
+  async function takePic() {
+    let options = { quality: 1, base64: true, exif: false };
+
+    let newImage = await cameraRef.current.takePictureAsync(options);
+    setImage(newImage);
+  };
+
   async function handleFacesDetected({ faces }: FaceDetectionResult) {
     const face = faces[0] as FaceDetector.FaceFeature;
-    setCounter(0);
     setFaceDetected(false);
 
     if (face) {
@@ -47,11 +56,25 @@ export function Home() {
         y: origin.y,
       }
 
-      if (counter == 5) {
-        await api.post("recognition", face);
+      takePic();
+
+      let formData = new FormData();
+      formData.append('file', image.uri);
+
+      // await api.get("/api/v1/faces/test");
+
+      console.log(formData);
+
+      try {
+        await api.post("/api/v1/faces/identify", formData, {
+          headers: {
+            'Content-Type': 'multipart/form-data'
+          }
+        });
+      } catch (error) {
+        console.error(error)        
       }
 
-      setCounter(counter + 1);
       setFaceDetected(true);
     }
   }
@@ -70,6 +93,7 @@ export function Home() {
         faceDetected && <Animated.View style={animatedStyle} />
       }
       <Camera
+        ref={cameraRef}
         style={styles.camera}
         type={CameraType.front}
         onFacesDetected={handleFacesDetected}
@@ -77,7 +101,7 @@ export function Home() {
           mode: FaceDetector.FaceDetectorMode.accurate,
           detectLandmarks: FaceDetector.FaceDetectorLandmarks.all,
           runClassifications: FaceDetector.FaceDetectorClassifications.all,
-          minDetectionInterval: 100,
+          minDetectionInterval: 5000,
           tracking: true
         }}
       />
