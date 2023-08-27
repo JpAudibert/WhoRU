@@ -36,30 +36,25 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# @app.post(PREFIX + "/identify")
-# async def indentify(file: UploadFile = File(...)):
-#     file.filename = f"{uuid.uuid4()}.png"
-#     contents = await file.read()
-
-#     # example of how you can save the file
-#     with open(file.filename, "wb") as f:
-#         f.write(contents)
-
-#     user_name, match_status = recognize(cv2.imread(file.filename))
-
-#     if match_status:
-#         epoch_time = time.time()
-#         date = time.strftime("%Y%m%d", time.localtime(epoch_time))
-#         with open(os.path.join(ATTENDANCE_LOG_DIR, "{}.csv".format(date)), "a") as f:
-#             f.write("{},{},{}\n".format(user_name, datetime.datetime.now(), "IN"))
-#             f.close()
-
-#     return {"user": user_name, "match_status": match_status}
-
 @app.post(PREFIX + "/identify")
-async def indentify(request: Request):
-    body = request.body()
-    print(body)
+async def indentify(file: UploadFile = File(...)):
+    file.filename = f"{uuid.uuid4()}.png"
+    contents = await file.read()
+
+    # example of how you can save the file
+    with open(file.filename, "wb") as f:
+        f.write(contents)
+
+    user_name, match_status = recognize(cv2.imread(file.filename))
+
+    if match_status:
+        epoch_time = time.time()
+        date = time.strftime("%Y%m%d", time.localtime(epoch_time))
+        with open(os.path.join(ATTENDANCE_LOG_DIR, "{}.csv".format(date)), "a") as f:
+            f.write("{},{},{}\n".format(user_name, datetime.datetime.now(), "IN"))
+            f.close()
+
+    return {"user": user_name, "match_status": match_status}
 
 @app.post(PREFIX + "/register")
 async def register(file: UploadFile = File(...), name: str = Form(...)):

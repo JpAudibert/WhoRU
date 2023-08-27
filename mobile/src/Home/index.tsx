@@ -61,8 +61,6 @@ export function Home() {
       let formData = new FormData();
       formData.append('file', image.uri);
 
-      // await api.get("/api/v1/faces/test");
-
       console.log(formData);
 
       try {
