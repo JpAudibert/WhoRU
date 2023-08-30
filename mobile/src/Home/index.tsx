@@ -3,17 +3,20 @@ import { Camera, CameraCapturedPicture, CameraType, FaceDetectionResult } from '
 import * as FaceDetector from 'expo-face-detector';
 import { useEffect, useState, useRef } from 'react';
 import Animated, { useSharedValue, useAnimatedStyle, log } from 'react-native-reanimated'
+import ViewShot, { captureScreen } from 'react-native-view-shot'
 
 import { styles } from './styles';
 import api from '../../services/api';
 import React from 'react';
 
 export function Home() {
+  let snapshotRef = useRef<ViewShot>()
   let cameraRef = useRef<Camera>();
   const [faceDetected, setFaceDetected] = useState(false);
   const [permission, requestPermission] = Camera.useCameraPermissions();
   const [counter, setCounter] = useState(0);
   const [image, setImage] = useState<CameraCapturedPicture>({} as CameraCapturedPicture);
+  const [snapshotImg, setSnapshotImg] = useState<string>();
 
   const faceValues = useSharedValue({
     width: 0,
@@ -36,10 +39,20 @@ export function Home() {
   }));
 
   async function takePic() {
-    let options = { quality: 1, base64: true, exif: false };
+    try {
+      let capturedSnapshot = await captureScreen({
+        format: "jpg",
+        quality: 0.8,
+        result: "base64",
+        width: 720,
+        height: 720,
+      });
 
-    let newImage = await cameraRef.current.takePictureAsync(options);
-    setImage(newImage);
+      setSnapshotImg(capturedSnapshot);
+    } catch (ex) {
+      console.error(ex, "Some error have occurred");
+    }
+
   };
 
   async function handleFacesDetected({ faces }: FaceDetectionResult) {
@@ -59,18 +72,19 @@ export function Home() {
       takePic();
 
       let formData = new FormData();
-      formData.append('file', image.uri);
-
-      console.log(formData);
+      formData.append('data', snapshotImg);
 
       try {
-        await api.post("/api/v1/faces/identify", formData, {
+        let result = await api.post("/api/v1/faces/identify", formData, {
           headers: {
             'Content-Type': 'multipart/form-data'
           }
         });
+
+        console.log(result.data);
+
       } catch (error) {
-        console.error(error)        
+        console.error(error)
       }
 
       setFaceDetected(true);
