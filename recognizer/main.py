@@ -1,3 +1,4 @@
+import base64
 import os
 import string
 from typing import Annotated
@@ -37,7 +38,27 @@ app.add_middleware(
 )
 
 @app.post(PREFIX + "/identify")
-async def indentify(file: UploadFile = File(...)):
+async def indentify(data: str = Form(...)):
+
+    fileData = base64.b64decode(data)
+    fileName = f"./recognizer/files/{uuid.uuid4()}.png"
+
+    with open(fileName, "wb") as f:
+        f.write(fileData)
+
+    user_name, match_status = recognize(cv2.imread(fileName))
+
+    if match_status:
+        epoch_time = time.time()
+        date = time.strftime("%Y%m%d", time.localtime(epoch_time))
+        with open(os.path.join(ATTENDANCE_LOG_DIR, "{}.csv".format(date)), "a") as f:
+            f.write("{},{},{}\n".format(user_name, datetime.datetime.now(), "IN"))
+            f.close()
+
+    return {"user": user_name, "match_status": match_status}
+
+@app.post(PREFIX + "/testing")
+async def indentify(file: UploadFile = File(...)):    
     file.filename = f"{uuid.uuid4()}.png"
     contents = await file.read()
 
