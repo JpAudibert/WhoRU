@@ -39,7 +39,7 @@ app.add_middleware(
 )
 
 @app.post(PREFIX + "/identify")
-async def indentify(data: str = Form(...)):
+async def identify(data: str = Form(...)):
     fileData = base64.b64decode(data)
     fileName = f"recognizer/files/{uuid.uuid4()}.png"
 
@@ -60,7 +60,7 @@ async def indentify(data: str = Form(...)):
     return {"user": user_name, "match_status": match_status}
 
 @app.post(PREFIX + "/testing")
-async def indentify(file: UploadFile = File(...)):    
+async def identify(file: UploadFile = File(...)):    
     file.filename = f"{uuid.uuid4()}.png"
     contents = await file.read()
 
