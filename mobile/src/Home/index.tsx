@@ -70,12 +70,13 @@ export function Home() {
       }
 
       takePic();
-
-      let formData = new FormData();
-      formData.append('data', snapshotImg);
-
+      
       try {
-        let result = await api.post("/api/v1/faces/identify", formData, {
+        console.log(api);
+
+        let result = await api.post("identify", {
+          data: snapshotImg
+        }, {
           headers: {
             'Content-Type': 'multipart/form-data'
           }
@@ -84,7 +85,7 @@ export function Home() {
         console.log(result.data);
 
       } catch (error) {
-        console.error(error)
+        console.log(error)
       }
 
       setFaceDetected(true);
@@ -113,7 +114,7 @@ export function Home() {
           mode: FaceDetector.FaceDetectorMode.accurate,
           detectLandmarks: FaceDetector.FaceDetectorLandmarks.all,
           runClassifications: FaceDetector.FaceDetectorClassifications.all,
-          minDetectionInterval: 5000,
+          minDetectionInterval: 2000,
           tracking: true
         }}
       />
