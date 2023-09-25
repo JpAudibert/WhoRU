@@ -18,8 +18,9 @@ import starlette
 import uvicorn
 
 
-ATTENDANCE_LOG_DIR = "./logs"
-DB_PATH = "./db"
+ATTENDANCE_LOG_DIR = "recognizer/logs"
+DB_PATH = "recognizer/db"
+
 for dir_ in [ATTENDANCE_LOG_DIR, DB_PATH]:
     if not os.path.exists(dir_):
         os.mkdir(dir_)
@@ -39,14 +40,15 @@ app.add_middleware(
 
 @app.post(PREFIX + "/identify")
 async def indentify(data: str = Form(...)):
-
     fileData = base64.b64decode(data)
-    fileName = f"./recognizer/files/{uuid.uuid4()}.png"
+    fileName = f"recognizer/files/{uuid.uuid4()}.png"
 
-    with open(fileName, "wb") as f:
+    file = UploadFile(file=fileData, filename=fileName)
+
+    with open(file.filename, "wb") as f:
         f.write(fileData)
 
-    user_name, match_status = recognize(cv2.imread(fileName))
+    user_name, match_status = recognize(cv2.imread(file.filename))
 
     if match_status:
         epoch_time = time.time()
@@ -79,7 +81,7 @@ async def indentify(file: UploadFile = File(...)):
 
 @app.post(PREFIX + "/register")
 async def register(file: UploadFile = File(...), name: str = Form(...)):
-    file.filename = f"{uuid.uuid4()}.png"
+    file.filename = f"recognizer/registers/{uuid.uuid4()}.png"
     contents = await file.read()
 
     # example of how you can save the file
@@ -111,8 +113,6 @@ async def get_attendance_logs():
     )
 
 def recognize(img):
-    # it is assumed there will be at most 1 match in the db
-
     embeddings_unknown = face_recognition.face_encodings(img)
     if len(embeddings_unknown) == 0:
         return "no_persons_found", False
@@ -129,6 +129,10 @@ def recognize(img):
         path_ = os.path.join(DB_PATH, db_dir[j])
 
         file = open(path_, "rb")
+
+        if os.stat(file.name).st_size == 0:
+            return "corrupted file", False
+
         embeddings = pickle.load(file)[0]
 
         match = face_recognition.compare_faces([embeddings], embeddings_unknown)[0]
