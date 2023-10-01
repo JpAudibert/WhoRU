@@ -38,6 +38,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+
 @app.post(PREFIX + "/identify")
 async def identify(data: str = Form(...)):
     fileData = base64.b64decode(data)
@@ -48,7 +49,7 @@ async def identify(data: str = Form(...)):
     with open(file.filename, "wb") as f:
         f.write(fileData)
 
-    user_name, match_status = recognize(cv2.imread(file.filename))
+    user_name, match_percentage, match_status = recognize(cv2.imread(file.filename))
 
     if match_status:
         epoch_time = time.time()
@@ -57,10 +58,11 @@ async def identify(data: str = Form(...)):
             f.write("{},{},{}\n".format(user_name, datetime.datetime.now(), "IN"))
             f.close()
 
-    return {"user": user_name, "match_status": match_status}
+    return {"user": user_name, "match_percentage": match_percentage, "match_status": match_status}
+
 
 @app.post(PREFIX + "/testing")
-async def identify(file: UploadFile = File(...)):    
+async def identify(file: UploadFile = File(...)):
     file.filename = f"{uuid.uuid4()}.png"
     contents = await file.read()
 
@@ -78,6 +80,7 @@ async def identify(file: UploadFile = File(...)):
             f.close()
 
     return {"user": user_name, "match_status": match_status}
+
 
 @app.post(PREFIX + "/register")
 async def register(file: UploadFile = File(...), name: str = Form(...)):
@@ -112,6 +115,7 @@ async def get_attendance_logs():
         filename, media_type="application/zip", filename=filename
     )
 
+
 def recognize(img):
     embeddings_unknown = face_recognition.face_encodings(img)
     if len(embeddings_unknown) == 0:
@@ -119,6 +123,7 @@ def recognize(img):
     else:
         embeddings_unknown = embeddings_unknown[0]
 
+    face_distance = 0
     match = False
     j = 0
 
@@ -140,9 +145,15 @@ def recognize(img):
         j += 1
 
     if match:
-        return db_dir[j - 1][:-7], True
+        face_distance = face_recognition.face_distance(
+            [embeddings], embeddings_unknown
+        )[0]
+        face_distance = 1 - face_distance
+
+        return db_dir[j - 1][:-7], round(face_distance, 4), True
     else:
-        return "unknown_person", False
+        return "unknown_person", face_distance, False
+
 
 if __name__ == "__main__":
     uvicorn.run("main:app", host="0.0.0.0", port=5001, reload=True)
