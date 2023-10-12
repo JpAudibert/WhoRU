@@ -1,6 +1,5 @@
 import base64
 import os
-import string
 from typing import Annotated
 import uuid
 import pickle
@@ -18,15 +17,18 @@ import starlette
 import uvicorn
 
 
-ATTENDANCE_LOG_DIR = "recognizer/logs"
+ZIP_PATH = "recognizer/logs"
+ATTENDANCE_LOG_PATH = "recognizer/logs"
 DB_PATH = "recognizer/db"
+CONFIRMATION_PATH = "recognizer/confirmation"
 
-for dir_ in [ATTENDANCE_LOG_DIR, DB_PATH]:
+PREFIX = "/api/v1/faces"
+
+for dir_ in [ATTENDANCE_LOG_PATH, DB_PATH, ZIP_PATH, CONFIRMATION_PATH]:
     if not os.path.exists(dir_):
         os.mkdir(dir_)
 
 app = FastAPI()
-PREFIX = "/api/v1/faces"
 
 origins = ["*"]
 
@@ -54,8 +56,8 @@ async def identify(data: str = Form(...)):
     if match_status:
         epoch_time = time.time()
         date = time.strftime("%Y%m%d", time.localtime(epoch_time))
-        with open(os.path.join(ATTENDANCE_LOG_DIR, "{}.csv".format(date)), "a") as f:
-            f.write("{},{},{}\n".format(user_name, datetime.datetime.now(), "IN"))
+        with open(os.path.join(ATTENDANCE_LOG_PATH, "{}.csv".format(date)), "a") as f:
+            f.write("{},{}\n".format(user_name, datetime.datetime.now()))
             f.close()
 
     return {"user": user_name, "match_percentage": match_percentage, "match_status": match_status}
@@ -75,7 +77,7 @@ async def identify(file: UploadFile = File(...)):
     if match_status:
         epoch_time = time.time()
         date = time.strftime("%Y%m%d", time.localtime(epoch_time))
-        with open(os.path.join(ATTENDANCE_LOG_DIR, "{}.csv".format(date)), "a") as f:
+        with open(os.path.join(ATTENDANCE_LOG_PATH, "{}.csv".format(date)), "a") as f:
             f.write("{},{},{}\n".format(user_name, datetime.datetime.now(), "IN"))
             f.close()
 
@@ -106,15 +108,25 @@ async def register(file: UploadFile = File(...), name: str = Form(...)):
 
 @app.get(PREFIX + "/get_attendance_logs")
 async def get_attendance_logs():
-    filename = "out.zip"
+    filename = ZIP_PATH + "out.zip"
 
-    shutil.make_archive(filename[:-4], "zip", ATTENDANCE_LOG_DIR)
+    shutil.make_archive(filename[:-4], "zip", ZIP_PATH)
 
     ##return File(filename, filename=filename, content_type="application/zip", as_attachment=True)
     return starlette.responses.FileResponse(
         filename, media_type="application/zip", filename=filename
     )
 
+@app.post(PREFIX + "/confirmation")
+async def confirm_identity(name: str = Form(...), confirm: str = Form(...)):
+    epoch_time = time.time()
+    date = time.strftime("%Y%m%d", time.localtime(epoch_time))
+
+    with open(os.path.join(CONFIRMATION_PATH, "{}.csv".format(date)), "a") as f:
+        f.write("{},{}\n".format(name, confirm))
+        f.close()
+
+    return {"status": 200}
 
 def recognize(img):
     embeddings_unknown = face_recognition.face_encodings(img)
