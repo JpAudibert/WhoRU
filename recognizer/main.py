@@ -60,7 +60,7 @@ async def identify(data: str = Form(...)):
             f.write("{},{}\n".format(user_name, datetime.datetime.now()))
             f.close()
 
-    return {"user": user_name, "match_percentage": match_percentage, "match_status": match_status}
+    return {"name": user_name, "match_percentage": match_percentage, "match_status": match_status}
 
 
 @app.post(PREFIX + "/testing")
@@ -118,12 +118,12 @@ async def get_attendance_logs():
     )
 
 @app.post(PREFIX + "/confirmation")
-async def confirm_identity(name: str = Form(...), confirm: str = Form(...)):
+async def confirm_identity(name: str = Form(...), confirmation: str = Form(...)):
     epoch_time = time.time()
     date = time.strftime("%Y%m%d", time.localtime(epoch_time))
 
     with open(os.path.join(CONFIRMATION_PATH, "{}.csv".format(date)), "a") as f:
-        f.write("{},{}\n".format(name, confirm))
+        f.write("{},{}\n".format(name, confirmation))
         f.close()
 
     return {"status": 200}
