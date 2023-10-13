@@ -130,13 +130,14 @@ async def confirm_identity(name: str = Form(...), confirmation: str = Form(...))
 
 def recognize(img):
     embeddings_unknown = face_recognition.face_encodings(img)
+    face_distance = 0
+    match = False
+
     if len(embeddings_unknown) == 0:
-        return "no_persons_found", False
+        return "no_persons_found", face_distance, match
     else:
         embeddings_unknown = embeddings_unknown[0]
 
-    face_distance = 0
-    match = False
     j = 0
 
     db_dir = sorted([j for j in os.listdir(DB_PATH) if j.endswith(".pickle")])
@@ -148,7 +149,7 @@ def recognize(img):
         file = open(path_, "rb")
 
         if os.stat(file.name).st_size == 0:
-            return "corrupted file", False
+            return "corrupted file", face_distance, match
 
         embeddings = pickle.load(file)[0]
 
@@ -164,7 +165,7 @@ def recognize(img):
 
         return db_dir[j - 1][:-7], round(face_distance, 4), True
     else:
-        return "unknown_person", face_distance, False
+        return "unknown_person", face_distance, match
 
 
 if __name__ == "__main__":
