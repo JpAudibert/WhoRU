@@ -1,9 +1,9 @@
 import { Text, TouchableOpacity, View } from 'react-native';
-import { Camera, CameraCapturedPicture, CameraType, FaceDetectionResult } from 'expo-camera';
+import { Camera, CameraType, FaceDetectionResult } from 'expo-camera';
 import * as FaceDetector from 'expo-face-detector';
 import { useEffect, useState, useRef } from 'react';
-import Animated, { useSharedValue, useAnimatedStyle, log } from 'react-native-reanimated'
-import ViewShot, { captureRef, captureScreen } from 'react-native-view-shot'
+import Animated, { useSharedValue, useAnimatedStyle } from 'react-native-reanimated'
+import { captureRef } from 'react-native-view-shot'
 
 import { styles } from './styles';
 import api from '../../services/api';
@@ -15,11 +15,18 @@ interface IRecognitionResult {
   match_status: string;
 }
 
+const initialRecognitionResult: IRecognitionResult = {
+  name: "",
+  match_percentage: 0,
+  match_status: "false",
+};
+
 export function Home() {
-  let snapshotRef = useRef<ViewShot>()
   let cameraRef = useRef<Camera>();
-  const [faceDetected, setFaceDetected] = useState(false);
+
   const [permission, requestPermission] = Camera.useCameraPermissions();
+
+  const [faceDetected, setFaceDetected] = useState(false);
   const [identity, setIdentity] = useState<IRecognitionResult>({} as IRecognitionResult);
   const [snapshotImg, setSnapshotImg] = useState<string>();
 
@@ -55,9 +62,8 @@ export function Home() {
 
       setSnapshotImg(capturedSnapshot);
     } catch (ex) {
-      console.error(ex, "Some error have occurred");
+      console.error(ex, "Some error have occurred capturing the face image");
     }
-
   };
 
   async function handleFacesDetected({ faces }: FaceDetectionResult) {
@@ -80,7 +86,7 @@ export function Home() {
       takePic();
 
       try {
-        let result = await api.post<IRecognitionResult>("identify", {
+        let { data } = await api.post<IRecognitionResult>("identify", {
           data: snapshotImg
         }, {
           headers: {
@@ -88,21 +94,21 @@ export function Home() {
           }
         });
 
-        console.log(result.data);
-        setIdentity(result.data);
-
+        console.log(data);
+        setIdentity(data);
       } catch (error) {
         console.log(error)
       }
 
       setFaceDetected(true);
+      setSnapshotImg("");
     }
   }
 
   async function handleConfirmation(confirmation: boolean) {
     console.log(confirmation);
 
-    let confirmationString = confirmation+""
+    let confirmationString = confirmation + ""
 
     console.log(confirmationString);
 
@@ -115,7 +121,7 @@ export function Home() {
       }
     });
 
-    identity.name = ""
+    setIdentity(initialRecognitionResult);
   }
 
   useEffect(() => {
@@ -134,19 +140,19 @@ export function Home() {
       <Camera
         ref={cameraRef}
         style={styles.camera}
-        type={CameraType.front}
+        type={CameraType.back}
         onFacesDetected={handleFacesDetected}
         faceDetectorSettings={{
           mode: FaceDetector.FaceDetectorMode.accurate,
           detectLandmarks: FaceDetector.FaceDetectorLandmarks.all,
           runClassifications: FaceDetector.FaceDetectorClassifications.all,
           minDetectionInterval: 2000,
-          tracking: true
+          tracking: false,
         }}
       />
 
       {
-        identity.name &&
+        !!identity.name &&
         <View style={styles.confirmation}>
           <View style={styles.confirmationContainerText}>
             <Text style={styles.confirmationText}>You are {identity.name}. Is it correct</Text>
