@@ -16,7 +16,6 @@ from pydantic import BaseModel
 import starlette
 import uvicorn
 
-
 ZIP_PATH = "recognizer/logs"
 ATTENDANCE_LOG_PATH = "recognizer/logs"
 DB_PATH = "recognizer/db"
@@ -40,7 +39,6 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-
 @app.post(PREFIX + "/identify")
 async def identify(data: str = Form(...)):
     fileData = base64.b64decode(data)
@@ -60,8 +58,11 @@ async def identify(data: str = Form(...)):
             f.write("{},{}\n".format(user_name, datetime.datetime.now()))
             f.close()
 
-    return {"name": user_name, "match_percentage": match_percentage, "match_status": match_status}
-
+    return {
+        "name": user_name,
+        "match_percentage": match_percentage,
+        "match_status": match_status,
+    }
 
 @app.post(PREFIX + "/testing")
 async def identify(file: UploadFile = File(...)):
@@ -83,7 +84,6 @@ async def identify(file: UploadFile = File(...)):
 
     return {"user": user_name, "match_status": match_status}
 
-
 @app.post(PREFIX + "/register")
 async def register(file: UploadFile = File(...), name: str = Form(...)):
     file.filename = f"recognizer/registers/{uuid.uuid4()}.png"
@@ -104,7 +104,6 @@ async def register(file: UploadFile = File(...), name: str = Form(...)):
     os.remove(file.filename)
 
     return {"registration_status": 200}
-
 
 @app.get(PREFIX + "/get_attendance_logs")
 async def get_attendance_logs():
@@ -151,7 +150,11 @@ def recognize(img):
         if os.stat(file.name).st_size == 0:
             return "corrupted file", face_distance, match
 
-        embeddings = pickle.load(file)[0]
+        try:
+            embeddings = pickle.load(file)[0]
+        except:
+            print("Error loading pickle file")
+            return "corrupted file", face_distance, match
 
         match = face_recognition.compare_faces([embeddings], embeddings_unknown)[0]
 
@@ -166,7 +169,6 @@ def recognize(img):
         return db_dir[j - 1][:-7], round(face_distance, 4), True
     else:
         return "unknown_person", face_distance, match
-
 
 if __name__ == "__main__":
     uvicorn.run("main:app", host="0.0.0.0", port=5001, reload=True)
