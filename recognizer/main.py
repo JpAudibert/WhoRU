@@ -64,6 +64,65 @@ async def identify(data: str = Form(...)):
         "match_status": match_status,
     }
 
+def recognize(img):
+    face_distance = 0
+    match = False
+
+    try:
+        embeddings_unknown = face_recognition.face_encodings(img)
+    except:
+        print("Error looking for the embeddings")
+        return "no person found", face_distance, match
+
+    if len(embeddings_unknown) == 0:
+        return "no_persons_found", face_distance, match
+    else:
+        embeddings_unknown = embeddings_unknown[0]
+
+    j = 0
+
+    db_dir = sorted([j for j in os.listdir(DB_PATH) if j.endswith(".pickle")])
+    # db_dir = sorted(os.listdir(DB_PATH))
+    print(db_dir)
+    while (not match) and (j < len(db_dir)):
+        path_ = os.path.join(DB_PATH, db_dir[j])
+
+        file = open(path_, "rb")
+
+        if os.stat(file.name).st_size == 0:
+            return "corrupted file", face_distance, match
+
+        try:
+            embeddings = pickle.load(file)[0]
+        except:
+            print("Error loading pickle file")
+            return "corrupted file", face_distance, match
+
+        match = face_recognition.compare_faces([embeddings], embeddings_unknown)[0]
+
+        j += 1
+
+    if match:
+        face_distance = face_recognition.face_distance(
+            [embeddings], embeddings_unknown
+        )[0]
+        face_distance = 1 - face_distance
+
+        return db_dir[j - 1][:-7], round(face_distance, 4), True
+    else:
+        return "unknown_person", face_distance, match
+
+@app.post(PREFIX + "/confirmation")
+async def confirm_identity(name: str = Form(...), confirmation: str = Form(...)):
+    epoch_time = time.time()
+    date = time.strftime("%Y%m%d", time.localtime(epoch_time))
+
+    with open(os.path.join(CONFIRMATION_PATH, "{}.csv".format(date)), "a") as f:
+        f.write("{},{}\n".format(name, confirmation))
+        f.close()
+
+    return {"status": 200}
+
 @app.post(PREFIX + "/testing")
 async def identify(file: UploadFile = File(...)):
     file.filename = f"{uuid.uuid4()}.png"
@@ -115,65 +174,6 @@ async def get_attendance_logs():
     return starlette.responses.FileResponse(
         filename, media_type="application/zip", filename=filename
     )
-
-@app.post(PREFIX + "/confirmation")
-async def confirm_identity(name: str = Form(...), confirmation: str = Form(...)):
-    epoch_time = time.time()
-    date = time.strftime("%Y%m%d", time.localtime(epoch_time))
-
-    with open(os.path.join(CONFIRMATION_PATH, "{}.csv".format(date)), "a") as f:
-        f.write("{},{}\n".format(name, confirmation))
-        f.close()
-
-    return {"status": 200}
-
-def recognize(img):
-    face_distance = 0
-    match = False
-
-    try:
-        embeddings_unknown = face_recognition.face_encodings(img)
-    except:
-        print("Error looking for the embeddings")
-        return "no person found", face_distance, match
-
-    if len(embeddings_unknown) == 0:
-        return "no_persons_found", face_distance, match
-    else:
-        embeddings_unknown = embeddings_unknown[0]
-
-    j = 0
-
-    db_dir = sorted([j for j in os.listdir(DB_PATH) if j.endswith(".pickle")])
-    # db_dir = sorted(os.listdir(DB_PATH))
-    print(db_dir)
-    while (not match) and (j < len(db_dir)):
-        path_ = os.path.join(DB_PATH, db_dir[j])
-
-        file = open(path_, "rb")
-
-        if os.stat(file.name).st_size == 0:
-            return "corrupted file", face_distance, match
-
-        try:
-            embeddings = pickle.load(file)[0]
-        except:
-            print("Error loading pickle file")
-            return "corrupted file", face_distance, match
-
-        match = face_recognition.compare_faces([embeddings], embeddings_unknown)[0]
-
-        j += 1
-
-    if match:
-        face_distance = face_recognition.face_distance(
-            [embeddings], embeddings_unknown
-        )[0]
-        face_distance = 1 - face_distance
-
-        return db_dir[j - 1][:-7], round(face_distance, 4), True
-    else:
-        return "unknown_person", face_distance, match
 
 if __name__ == "__main__":
     uvicorn.run("main:app", host="0.0.0.0", port=5001, reload=True)
