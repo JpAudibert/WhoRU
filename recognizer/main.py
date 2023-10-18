@@ -128,9 +128,14 @@ async def confirm_identity(name: str = Form(...), confirmation: str = Form(...))
     return {"status": 200}
 
 def recognize(img):
-    embeddings_unknown = face_recognition.face_encodings(img)
     face_distance = 0
     match = False
+
+    try:
+        embeddings_unknown = face_recognition.face_encodings(img)
+    except:
+        print("Error looking for the embeddings")
+        return "no person found", face_distance, match
 
     if len(embeddings_unknown) == 0:
         return "no_persons_found", face_distance, match
