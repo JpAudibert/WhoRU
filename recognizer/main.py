@@ -16,14 +16,15 @@ from pydantic import BaseModel
 import starlette
 import uvicorn
 
-ZIP_PATH = "recognizer/logs"
-ATTENDANCE_LOG_PATH = "recognizer/logs"
-DB_PATH = "recognizer/db"
-CONFIRMATION_PATH = "recognizer/confirmation"
+REGISTERS_PATH = "registers"
+ZIP_PATH = "logs"
+ATTENDANCE_LOG_PATH = "logs"
+DB_PATH = "db"
+CONFIRMATION_PATH = "confirmation"
 
 PREFIX = "/api/v1/faces"
 
-for dir_ in [ATTENDANCE_LOG_PATH, DB_PATH, ZIP_PATH, CONFIRMATION_PATH]:
+for dir_ in [REGISTERS_PATH, ATTENDANCE_LOG_PATH, DB_PATH, ZIP_PATH, CONFIRMATION_PATH]:
     if not os.path.exists(dir_):
         os.mkdir(dir_)
 
@@ -42,7 +43,7 @@ app.add_middleware(
 @app.post(PREFIX + "/identify")
 async def identify(data: str = Form(...)):
     fileData = base64.b64decode(data)
-    fileName = f"recognizer/files/{uuid.uuid4()}.png"
+    fileName = f"files/{uuid.uuid4()}.png"
 
     file = UploadFile(file=fileData, filename=fileName)
 
@@ -57,6 +58,8 @@ async def identify(data: str = Form(...)):
         with open(os.path.join(ATTENDANCE_LOG_PATH, "{}.csv".format(date)), "a") as f:
             f.write("{},{}\n".format(user_name, datetime.datetime.now()))
             f.close()
+
+    os.remove(file.filename)
 
     return {
         "name": user_name,
@@ -132,7 +135,7 @@ async def identify(file: UploadFile = File(...)):
     with open(file.filename, "wb") as f:
         f.write(contents)
 
-    user_name, match_status = recognize(cv2.imread(file.filename))
+    user_name, match_percentage , match_status = recognize(cv2.imread(file.filename))
 
     if match_status:
         epoch_time = time.time()
@@ -141,11 +144,13 @@ async def identify(file: UploadFile = File(...)):
             f.write("{},{},{}\n".format(user_name, datetime.datetime.now(), "IN"))
             f.close()
 
-    return {"user": user_name, "match_status": match_status}
+    os.remove(file.filename)
+
+    return {"user": user_name, "match_percentage": match_percentage, "match_status": match_status}
 
 @app.post(PREFIX + "/register")
 async def register(file: UploadFile = File(...), name: str = Form(...)):
-    file.filename = f"recognizer/registers/{uuid.uuid4()}.png"
+    file.filename = f"registers/{uuid.uuid4()}.png"
     contents = await file.read()
 
     # example of how you can save the file
@@ -176,4 +181,4 @@ async def get_attendance_logs():
     )
 
 if __name__ == "__main__":
-    uvicorn.run("main:app", host="0.0.0.0", port=5001, reload=True)
+    uvicorn.run("main:app", host="0.0.0.0", port=5001, reload=False, debug=False)
