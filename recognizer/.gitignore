@@ -131,6 +131,7 @@ db/
 confirmation/
 .vscode/
 logs/
+batch/
 
 # Spyder project settings
 .spyderproject
