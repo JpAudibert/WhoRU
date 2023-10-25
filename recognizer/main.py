@@ -16,15 +16,17 @@ from pydantic import BaseModel
 import starlette
 import uvicorn
 
-REGISTERS_PATH = "registers"
-ZIP_PATH = "logs"
-ATTENDANCE_LOG_PATH = "logs"
-DB_PATH = "db"
-CONFIRMATION_PATH = "confirmation"
+#remove recognizer
+BATCH_PATH = "recognizer/batch"
+REGISTERS_PATH = "recognizer/registers"
+ZIP_PATH = "recognizer/logs"
+ATTENDANCE_LOG_PATH = "recognizer/logs"
+DB_PATH = "recognizer/db"
+CONFIRMATION_PATH = "recognizer/confirmation"
 
 PREFIX = "/api/v1/faces"
 
-for dir_ in [REGISTERS_PATH, ATTENDANCE_LOG_PATH, DB_PATH, ZIP_PATH, CONFIRMATION_PATH]:
+for dir_ in [BATCH_PATH, REGISTERS_PATH, ATTENDANCE_LOG_PATH, DB_PATH, ZIP_PATH, CONFIRMATION_PATH]:
     if not os.path.exists(dir_):
         os.mkdir(dir_)
 
@@ -169,6 +171,41 @@ async def register(file: UploadFile = File(...), name: str = Form(...)):
 
     return {"registration_status": 200}
 
+@app.post(PREFIX + "/register/batch")
+async def register():
+    files_batch = os.listdir(BATCH_PATH)
+
+    for file_b in files_batch:
+        new_filename = os.path.join(BATCH_PATH, file_b)
+        data = None
+
+        try:
+            with open(new_filename, 'rb') as file:
+                contents = file.read()
+        except Exception as e:
+            print(f"Error reading {new_filename}: {e}")
+
+        file_to_insert = UploadFile(file=data, filename=new_filename)
+
+        # example of how you can save the file
+        with open(file_to_insert.filename, "wb") as f:
+            f.write(contents)
+
+        correct_filename = file_b.split("/")[-1].split(".")[0]
+
+        shutil.copy(file_to_insert.filename, os.path.join(DB_PATH, "{}.png".format(correct_filename)))
+
+        embeddings = face_recognition.face_encodings(cv2.imread(file_to_insert.filename))
+
+
+        file_ = open(os.path.join(DB_PATH, "{}.pickle".format(correct_filename)), "wb")
+        pickle.dump(embeddings, file_)
+        print(file_to_insert.filename, file_to_insert.filename)
+
+        os.remove(file_to_insert.filename)
+
+    return {"registration_status": 200}
+
 @app.get(PREFIX + "/get_attendance_logs")
 async def get_attendance_logs():
     filename = ZIP_PATH + "out.zip"
@@ -181,4 +218,4 @@ async def get_attendance_logs():
     )
 
 if __name__ == "__main__":
-    uvicorn.run("main:app", host="0.0.0.0", port=5001, reload=False)
+    uvicorn.run("main:app", host="0.0.0.0", port=5001, reload=True)
