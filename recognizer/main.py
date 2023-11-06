@@ -139,6 +139,7 @@ def recognize(img, tolerance=0.55):
         face_distance = face_recognition.face_distance(
             [embeddings], embeddings_unknown
         )[0]
+        face_distance = 1 - face_distance
 
         return db_dir[j - 1][:-7], round(face_distance, 4), True
     else:
