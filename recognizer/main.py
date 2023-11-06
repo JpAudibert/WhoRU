@@ -58,7 +58,7 @@ async def identify(data: str = Form(...), tolerance: float = Form(0.6)):
     match_status = False
 
     fileData = base64.b64decode(data)
-    fileName = f"recognizer/files/{uuid.uuid4()}.png"
+    fileName = f"files/{uuid.uuid4()}.png"
 
     file = UploadFile(file=fileData, filename=fileName)
 
