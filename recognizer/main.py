@@ -1,32 +1,39 @@
 import base64
 import os
-from typing import Annotated
+from typing import Annotated, List
 import uuid
 import pickle
 import datetime
 import time
 import shutil
+from time import sleep
 
 import cv2
-from fastapi import FastAPI, File, Request, UploadFile, Form, UploadFile, Response
-from fastapi.responses import FileResponse
+from fastapi import FastAPI, File, UploadFile, Form, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 import face_recognition
-from pydantic import BaseModel
 import starlette
 import uvicorn
 
-#remove recognizer
+# remove recognizer
 BATCH_PATH = "batch"
 REGISTERS_PATH = "registers"
 ZIP_PATH = "logs"
+ZIP_PATH = "files"
 ATTENDANCE_LOG_PATH = "logs"
 DB_PATH = "db"
 CONFIRMATION_PATH = "confirmation"
 
 PREFIX = "/api/v1/faces"
 
-for dir_ in [BATCH_PATH, REGISTERS_PATH, ATTENDANCE_LOG_PATH, DB_PATH, ZIP_PATH, CONFIRMATION_PATH]:
+for dir_ in [
+    BATCH_PATH,
+    REGISTERS_PATH,
+    ATTENDANCE_LOG_PATH,
+    DB_PATH,
+    ZIP_PATH,
+    CONFIRMATION_PATH,
+]:
     if not os.path.exists(dir_):
         os.mkdir(dir_)
 
@@ -42,42 +49,58 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+
 @app.post(PREFIX + "/identify")
-async def identify(data: str = Form(...)):
+async def identify(data: str = Form(...), tolerance: float = Form(0.6)):
+    recognitionId = str(uuid.uuid4())
+    user_name = ""
+    match_percentage = 0
+    match_status = False
+
     fileData = base64.b64decode(data)
-    fileName = f"files/{uuid.uuid4()}.png"
+    fileName = f"recognizer/files/{uuid.uuid4()}.png"
 
     file = UploadFile(file=fileData, filename=fileName)
 
     with open(file.filename, "wb") as f:
         f.write(fileData)
 
-    user_name, match_percentage, match_status = recognize(cv2.imread(file.filename))
+    user_name, match_percentage, match_status = recognize(
+        cv2.imread(file.filename), tolerance
+    )
 
     if match_status:
         epoch_time = time.time()
         date = time.strftime("%Y%m%d", time.localtime(epoch_time))
         with open(os.path.join(ATTENDANCE_LOG_PATH, "{}.csv".format(date)), "a") as f:
-            f.write("{},{}\n".format(user_name, datetime.datetime.now()))
+            f.write(
+                "{},{},{},{}\n".format(
+                    recognitionId, user_name, match_percentage, datetime.datetime.now()
+                )
+            )
             f.close()
 
     os.remove(file.filename)
 
     return {
+        "id": recognitionId,
         "name": user_name,
         "match_percentage": match_percentage,
         "match_status": match_status,
     }
 
-def recognize(img):
+
+def recognize(img, tolerance=0.55):
     face_distance = 0
     match = False
+    embeddings_unknown = []
 
-    try:
+    try:  
         embeddings_unknown = face_recognition.face_encodings(img)
     except:
         print("Error looking for the embeddings")
-        return "no person found", face_distance, match
+        sleep(1)
+        return "encoding_error", face_distance, match
 
     if len(embeddings_unknown) == 0:
         return "no_persons_found", face_distance, match
@@ -98,12 +121,17 @@ def recognize(img):
             return "corrupted file", face_distance, match
 
         try:
-            embeddings = pickle.load(file)[0]
+            pickleEmbeddings = pickle.load(file)
+            
+            if len(pickleEmbeddings) > 0:
+                embeddings = pickleEmbeddings[0]
         except:
-            print("Error loading pickle file")
-            return "corrupted file", face_distance, match
+            j += 1
+            continue
 
-        match = face_recognition.compare_faces([embeddings], embeddings_unknown)[0]
+        match = face_recognition.compare_faces(
+            [embeddings], embeddings_unknown, tolerance
+        )[0]
 
         j += 1
 
@@ -111,25 +139,30 @@ def recognize(img):
         face_distance = face_recognition.face_distance(
             [embeddings], embeddings_unknown
         )[0]
-        face_distance = 1 - face_distance
 
         return db_dir[j - 1][:-7], round(face_distance, 4), True
     else:
         return "unknown_person", face_distance, match
 
+
 @app.post(PREFIX + "/confirmation")
-async def confirm_identity(name: str = Form(...), confirmation: str = Form(...)):
+async def confirm_identity(
+    id: str = Form(...), name: str = Form(...), confirmation: str = Form(...)
+):
     epoch_time = time.time()
     date = time.strftime("%Y%m%d", time.localtime(epoch_time))
 
     with open(os.path.join(CONFIRMATION_PATH, "{}.csv".format(date)), "a") as f:
-        f.write("{},{}\n".format(name, confirmation))
+        f.write("{},{},{}\n".format(id, name, confirmation))
         f.close()
 
     return {"status": 200}
 
+
 @app.post(PREFIX + "/testing")
 async def identify(file: UploadFile = File(...)):
+    recognitionId = str(uuid.uuid4())
+
     file.filename = f"{uuid.uuid4()}.png"
     contents = await file.read()
 
@@ -137,18 +170,27 @@ async def identify(file: UploadFile = File(...)):
     with open(file.filename, "wb") as f:
         f.write(contents)
 
-    user_name, match_percentage , match_status = recognize(cv2.imread(file.filename))
+    user_name, match_percentage, match_status = recognize(cv2.imread(file.filename))
 
     if match_status:
         epoch_time = time.time()
         date = time.strftime("%Y%m%d", time.localtime(epoch_time))
         with open(os.path.join(ATTENDANCE_LOG_PATH, "{}.csv".format(date)), "a") as f:
-            f.write("{},{},{}\n".format(user_name, datetime.datetime.now(), "IN"))
+            f.write(
+                "{},{},{},{}\n".format(
+                    recognitionId, user_name, match_percentage, datetime.datetime.now()
+                )
+            )
             f.close()
 
     os.remove(file.filename)
 
-    return {"user": user_name, "match_percentage": match_percentage, "match_status": match_status}
+    return {
+        "user": user_name,
+        "match_percentage": match_percentage,
+        "match_status": match_status,
+    }
+
 
 @app.post(PREFIX + "/register")
 async def register(file: UploadFile = File(...), name: str = Form(...)):
@@ -171,6 +213,7 @@ async def register(file: UploadFile = File(...), name: str = Form(...)):
 
     return {"registration_status": 200}
 
+
 @app.post(PREFIX + "/register/batch")
 async def register():
     files_batch = os.listdir(BATCH_PATH)
@@ -180,7 +223,7 @@ async def register():
         data = None
 
         try:
-            with open(new_filename, 'rb') as file:
+            with open(new_filename, "rb") as file:
                 contents = file.read()
         except Exception as e:
             print(f"Error reading {new_filename}: {e}")
@@ -193,10 +236,14 @@ async def register():
 
         correct_filename = file_b.split("/")[-1].split(".")[0]
 
-        shutil.copy(file_to_insert.filename, os.path.join(DB_PATH, "{}.png".format(correct_filename)))
+        shutil.copy(
+            file_to_insert.filename,
+            os.path.join(DB_PATH, "{}.png".format(correct_filename)),
+        )
 
-        embeddings = face_recognition.face_encodings(cv2.imread(file_to_insert.filename))
-
+        embeddings = face_recognition.face_encodings(
+            cv2.imread(file_to_insert.filename)
+        )
 
         file_ = open(os.path.join(DB_PATH, "{}.pickle".format(correct_filename)), "wb")
         pickle.dump(embeddings, file_)
@@ -205,6 +252,7 @@ async def register():
         os.remove(file_to_insert.filename)
 
     return {"registration_status": 200}
+
 
 @app.get(PREFIX + "/get_attendance_logs")
 async def get_attendance_logs():
@@ -217,5 +265,6 @@ async def get_attendance_logs():
         filename, media_type="application/zip", filename=filename
     )
 
+
 if __name__ == "__main__":
-    uvicorn.run("main:app", host="0.0.0.0", port=5001, reload=False)
+    uvicorn.run("main:app", host="0.0.0.0", port=5001, reload=True)
