@@ -1,56 +1,37 @@
-import { Text, TouchableOpacity, View } from 'react-native'
+import { PixelRatio, Text, TouchableOpacity, View } from 'react-native'
 import { Camera, CameraType, type FaceDetectionResult } from 'expo-camera'
 import * as FaceDetector from 'expo-face-detector'
 import React, { useState, useRef, useCallback, useEffect } from 'react'
-import Animated, {
-  useSharedValue,
-  useAnimatedStyle,
-} from 'react-native-reanimated'
-// import { captureRef } from 'react-native-view-shot'
 
 import { styles } from './styles'
 import api from '../../services/api'
 import { captureRef } from 'react-native-view-shot'
 
 interface IRecognitionResult {
+  id: string
   name: string
   match_percentage: number
   match_status: boolean
 }
 
 const initialDetectionInterval = 2000
+const initialTolerance = 0.55
+const targetPixelCount = 720
+const pixelRatio = PixelRatio.get()
+const pixels = targetPixelCount / pixelRatio
 
 export function Home() {
   const cameraRef = useRef<Camera>()
 
   const [permission, requestPermission] = Camera.useCameraPermissions()
 
-  const [faceDetected, setFaceDetected] = useState(false)
   const [identity, setIdentity] = useState<IRecognitionResult | null>(null)
 
   const [detectionInterval, setDetectionInterval] = useState(
     initialDetectionInterval,
   )
 
-  const faceValues = useSharedValue({
-    width: 0,
-    height: 0,
-    x: 0,
-    y: 0,
-  })
-
-  const animatedStyle = useAnimatedStyle(() => ({
-    position: 'absolute',
-    zIndex: 1,
-    width: faceValues.value.width,
-    height: faceValues.value.height,
-    transform: [
-      { translateX: faceValues.value.x },
-      { translateY: faceValues.value.y },
-    ],
-    borderColor: 'blue',
-    borderWidth: 10,
-  }))
+  const [tolerance, setTolerance] = useState(initialTolerance)
 
   const takePic = useCallback(async (): Promise<string> => {
     try {
@@ -58,8 +39,8 @@ export function Home() {
         format: 'png',
         quality: 0.8,
         result: 'base64',
-        width: 720,
-        height: 720,
+        width: pixels,
+        height: pixels,
       })
     } catch (ex) {
       console.error(ex, 'Some error have occurred capturing the face image')
@@ -69,30 +50,21 @@ export function Home() {
   const handleFacesDetected = useCallback(
     async ({ faces }: FaceDetectionResult) => {
       const face = faces[0] as FaceDetector.FaceFeature
-      setFaceDetected(false)
+      // setFaceDetected(false)
 
       console.log('not identifying')
       if (face && !identity) {
         console.log('identifying')
 
-        const { size, origin } = face.bounds
-
-        faceValues.value = {
-          width: size.width,
-          height: size.height,
-          x: origin.x,
-          y: origin.y,
-        }
-
         const capturedSnapshot = await takePic()
-
-        console.log('image base64', capturedSnapshot.slice(0, 100))
+        console.log(tolerance)
 
         try {
           const { data } = await api.post<IRecognitionResult>(
             'identify',
             {
               data: capturedSnapshot,
+              tolerance,
             },
             {
               headers: {
@@ -108,21 +80,17 @@ export function Home() {
 
           console.log('request data', data)
           setIdentity(data)
-          setDetectionInterval(20000)
+          setDetectionInterval(50000)
         } catch (error) {
           console.log(error)
         }
-
-        setFaceDetected(true)
       }
     },
-    [faceValues, identity, takePic],
+    [identity, takePic, tolerance],
   )
 
   const handleConfirmation = useCallback(
     async (confirmation: boolean) => {
-      console.log(confirmation)
-
       if (!identity) return
 
       console.log('sending confirmations')
@@ -130,6 +98,7 @@ export function Home() {
       await api.post(
         'confirmation',
         {
+          id: identity.id,
           name: identity.name,
           confirmation: confirmation ? 'yes' : 'no',
         },
@@ -140,10 +109,17 @@ export function Home() {
         },
       )
 
+      if (!confirmation) {
+        const reducedTolerance = tolerance - 0.05
+        setTolerance(reducedTolerance)
+      } else {
+        setTolerance(initialTolerance)
+      }
+
       setIdentity(null)
       setDetectionInterval(initialDetectionInterval)
     },
-    [identity],
+    [identity, tolerance],
   )
 
   useEffect(() => {
@@ -158,7 +134,6 @@ export function Home() {
 
   return (
     <View style={styles.container}>
-      {faceDetected && <Animated.View style={animatedStyle} />}
       <Camera
         ref={cameraRef}
         style={styles.camera}
@@ -166,10 +141,10 @@ export function Home() {
         onFacesDetected={handleFacesDetected}
         faceDetectorSettings={{
           mode: FaceDetector.FaceDetectorMode.accurate,
-          detectLandmarks: FaceDetector.FaceDetectorLandmarks.all,
-          runClassifications: FaceDetector.FaceDetectorClassifications.all,
+          detectLandmarks: FaceDetector.FaceDetectorLandmarks.none,
+          runClassifications: FaceDetector.FaceDetectorClassifications.none,
           minDetectionInterval: detectionInterval,
-          tracking: false,
+          tracking: true,
         }}
       />
 
