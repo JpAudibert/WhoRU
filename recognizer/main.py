@@ -16,13 +16,13 @@ import starlette
 import uvicorn
 
 # remove recognizer
-BATCH_PATH = "recognizer/batch"
-REGISTERS_PATH = "recognizer/registers"
-ZIP_PATH = "recognizer/logs"
-ZIP_PATH = "recognizer/files"
-ATTENDANCE_LOG_PATH = "recognizer/logs"
-DB_PATH = "recognizer/db"
-CONFIRMATION_PATH = "recognizer/confirmation"
+BATCH_PATH = "batch"
+REGISTERS_PATH = "registers"
+ZIP_PATH = "logs"
+ZIP_PATH = "files"
+ATTENDANCE_LOG_PATH = "logs"
+DB_PATH = "db"
+CONFIRMATION_PATH = "confirmation"
 
 PREFIX = "/api/v1/faces"
 
@@ -58,7 +58,7 @@ async def identify(data: str = Form(...), tolerance: float = Form(0.6)):
     match_status = False
 
     fileData = base64.b64decode(data)
-    fileName = f"recognizer/files/{uuid.uuid4()}.png"
+    fileName = f"files/{uuid.uuid4()}.png"
 
     file = UploadFile(file=fileData, filename=fileName)
 
@@ -165,7 +165,7 @@ async def confirm_identity(
 async def identify(file: UploadFile = File(...)):
     recognitionId = str(uuid.uuid4())
 
-    file.filename = f"recognizer/files/{uuid.uuid4()}.png"
+    file.filename = f"files/{uuid.uuid4()}.png"
     contents = await file.read()
 
     # example of how you can save the file
