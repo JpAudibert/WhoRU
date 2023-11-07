@@ -140,11 +140,11 @@ export function Home() {
         type={CameraType.front}
         onFacesDetected={handleFacesDetected}
         faceDetectorSettings={{
-          mode: FaceDetector.FaceDetectorMode.accurate,
+          mode: FaceDetector.FaceDetectorMode.fast,
           detectLandmarks: FaceDetector.FaceDetectorLandmarks.none,
           runClassifications: FaceDetector.FaceDetectorClassifications.none,
           minDetectionInterval: detectionInterval,
-          tracking: true,
+          tracking: false,
         }}
       />
 
