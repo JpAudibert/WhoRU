@@ -16,13 +16,13 @@ import starlette
 import uvicorn
 
 # remove recognizer
-BATCH_PATH = "batch"
-REGISTERS_PATH = "registers"
-ZIP_PATH = "logs"
-ZIP_PATH = "files"
-ATTENDANCE_LOG_PATH = "logs"
-DB_PATH = "db"
-CONFIRMATION_PATH = "confirmation"
+BATCH_PATH = "recognizer/batch"
+REGISTERS_PATH = "recognizer/registers"
+ZIP_PATH = "recognizer/logs"
+ZIP_PATH = "recognizer/files"
+ATTENDANCE_LOG_PATH = "recognizer/logs"
+DB_PATH = "recognizer/db"
+CONFIRMATION_PATH = "recognizer/confirmation"
 
 PREFIX = "/api/v1/faces"
 
@@ -58,7 +58,7 @@ async def identify(data: str = Form(...), tolerance: float = Form(0.6)):
     match_status = False
 
     fileData = base64.b64decode(data)
-    fileName = f"files/{uuid.uuid4()}.png"
+    fileName = f"recognizer/files/{uuid.uuid4()}.png"
 
     file = UploadFile(file=fileData, filename=fileName)
 
@@ -91,19 +91,23 @@ async def identify(data: str = Form(...), tolerance: float = Form(0.6)):
 
 
 def recognize(img, tolerance=0.55):
-    face_distance = 0
-    match = False
-    embeddings_unknown = []
+    person_name = "Unknown Person"
+    match_percentage = 0
+    is_match = False
 
-    try:  
+    embeddings_unknown = []
+    face_distance = 1
+    match = False
+
+    try:
         embeddings_unknown = face_recognition.face_encodings(img)
     except:
         print("Error looking for the embeddings")
         sleep(1)
-        return "encoding_error", face_distance, match
+        return "encoding_error", match_percentage, match
 
     if len(embeddings_unknown) == 0:
-        return "no_persons_found", face_distance, match
+        return "no_persons_found", match_percentage, match
     else:
         embeddings_unknown = embeddings_unknown[0]
 
@@ -112,39 +116,36 @@ def recognize(img, tolerance=0.55):
     db_dir = sorted([j for j in os.listdir(DB_PATH) if j.endswith(".pickle")])
     # db_dir = sorted(os.listdir(DB_PATH))
     print(db_dir)
-    while (not match) and (j < len(db_dir)):
+
+    for j in range(len(db_dir)):
         path_ = os.path.join(DB_PATH, db_dir[j])
 
         file = open(path_, "rb")
 
         if os.stat(file.name).st_size == 0:
-            return "corrupted file", face_distance, match
+            return "corrupted file", match_percentage, match
 
         try:
             pickleEmbeddings = pickle.load(file)
-            
+
             if len(pickleEmbeddings) > 0:
                 embeddings = pickleEmbeddings[0]
         except:
-            j += 1
             continue
 
-        match = face_recognition.compare_faces(
-            [embeddings], embeddings_unknown, tolerance
-        )[0]
+        match = face_recognition.compare_faces([embeddings], embeddings_unknown, tolerance)[0]
 
-        j += 1
+        if match:
+            new_face_distance = face_recognition.face_distance([embeddings], embeddings_unknown)[0]
 
-    if match:
-        face_distance = face_recognition.face_distance(
-            [embeddings], embeddings_unknown
-        )[0]
-        face_distance = 1 - face_distance
+            if new_face_distance < face_distance:
+                person_name = db_dir[j][:-7]
+                match_percentage = 1 - new_face_distance
+                is_match = True
+                
+                face_distance = new_face_distance
 
-        return db_dir[j - 1][:-7], round(face_distance, 4), True
-    else:
-        return "unknown_person", face_distance, match
-
+    return person_name, round(match_percentage, 4), is_match
 
 @app.post(PREFIX + "/confirmation")
 async def confirm_identity(
@@ -164,7 +165,7 @@ async def confirm_identity(
 async def identify(file: UploadFile = File(...)):
     recognitionId = str(uuid.uuid4())
 
-    file.filename = f"{uuid.uuid4()}.png"
+    file.filename = f"recognizer/files/{uuid.uuid4()}.png"
     contents = await file.read()
 
     # example of how you can save the file
@@ -268,4 +269,4 @@ async def get_attendance_logs():
 
 
 if __name__ == "__main__":
-    uvicorn.run("main:app", host="0.0.0.0", port=5001, reload=False)
+    uvicorn.run("main:app", host="0.0.0.0", port=5001, reload=True)
