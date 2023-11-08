@@ -1,55 +1,54 @@
-import { StyleSheet } from "react-native";
+import { StyleSheet } from 'react-native'
 
 export const styles = StyleSheet.create({
-    container: {
-        marginTop: 124,
-        flexGrow: 1,
-    },
+  container: {
+    marginTop: 124,
+    flexGrow: 1,
+  },
 
-    camera: {
-        flex: 0.7,
-    },
+  camera: {
+    flex: 0.7,
+  },
 
-    confirmation: {
-        display: "flex",
-        justifyContent: "center",
-        alignItems: "center",
+  confirmation: {
+    display: 'flex',
+    justifyContent: 'center',
+    alignItems: 'center',
 
-        marginTop: 40
-    },
-    
-    confirmationContainerText: {
-    },
+    marginTop: 40,
+  },
 
-    confirmationText: {
-        fontFamily: "Roboto",
-        fontSize: 30
-    },
+  confirmationContainerText: {},
 
-    confirmationBox: {
-        display: "flex",
-        flexDirection: "row",
-        justifyContent: "space-between",
+  confirmationText: {
+    fontFamily: 'Roboto',
+    fontSize: 30,
+  },
 
-        marginTop: 40
-    },
+  confirmationBox: {
+    display: 'flex',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
 
-    confirmationButton: {
-        padding: 20,
-        borderRadius: 5,
-        marginRight: 24,
-        backgroundColor: "#37ff8b"
-    },
+    marginTop: 40,
+  },
 
-    confirmationButtonNegation: {
-        padding: 20,
-        borderRadius: 5,
-        marginRight: 24,
-        backgroundColor: "#E41E46",
-    },
+  confirmationButton: {
+    padding: 20,
+    borderRadius: 5,
+    marginRight: 24,
+    backgroundColor: '#37ff8b',
+  },
 
-    confirmationButtonText: {
-        fontFamily: "Roboto",
-        fontSize: 30
-    }
-});
+  confirmationButtonNegation: {
+    padding: 20,
+    borderRadius: 5,
+    marginRight: 24,
+    backgroundColor: '#E41E46',
+  },
+
+  confirmationButtonText: {
+    fontFamily: 'Roboto',
+    fontSize: 30,
+  },
+})
